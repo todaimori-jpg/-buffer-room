@@ -231,7 +231,13 @@ def prepare(job_id):
                 if path.is_dir(): shutil.rmtree(path, ignore_errors=True)
                 else: path.unlink(missing_ok=True)
     except Exception as error:
-        LOG.warning("Video preparation %s failed: %s", job_id, type(error).__name__)
+        # Keep useful extractor diagnostics in the owner's Render logs, without
+        # leaking signed media URLs or any potential bearer values.
+        detail = re.sub(r"https?://\S+", "[URL]", str(error))
+        detail = re.sub(r"(?i)bearer\s+\S+", "Bearer [redacted]", detail)
+        if API_KEY:
+            detail = detail.replace(API_KEY, "[redacted]")
+        LOG.warning("Video preparation %s failed: %s: %s", job_id, type(error).__name__, detail[-1200:])
         update_job(job_id, status="error", stage="Preparation failed", error=friendly_error(error))
         shutil.rmtree(directory, ignore_errors=True)
 

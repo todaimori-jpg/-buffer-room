@@ -70,7 +70,10 @@ async function ensureWorker() {
   if (!('serviceWorker' in navigator)) throw new Error('Offline playback needs a browser with service workers. Open this app in Safari.');
   // A working installed controller must not depend on re-fetching its script.
   // Re-registering first can fail offline even though every video byte is local.
-  if (navigator.serviceWorker.controller) return;
+  if (navigator.serviceWorker.controller) {
+    if (navigator.onLine) navigator.serviceWorker.getRegistration().then(registration => registration?.update()).catch(()=>{});
+    return;
+  }
   await navigator.serviceWorker.register('/sw.js', {type: 'module'});
   await Promise.race([navigator.serviceWorker.ready, new Promise((_, reject) => setTimeout(() => reject(new Error('The offline player could not start. Reload while online and try again.')), 20000))]);
   if (!navigator.serviceWorker.controller) await Promise.race([
@@ -160,7 +163,7 @@ async function cacheYouTube(video, signal) {
   toast(`${video.title} is ready offline.`);
 }
 async function pump() {
-  if (pumping || !config.server || !config.key || !navigator.onLine) return;
+  if (pumping || !config.server || (!config.key && !config.managed) || !navigator.onLine) return;
   pumping = true; await holdScreen();
   try {
     while (navigator.onLine) {
@@ -186,7 +189,7 @@ async function addLink(event) {
   if (videos.some(v => v.youtubeId === id && v.quality === quality)) { toast('That video is already in your room at this quality.'); return; }
   const video = {id:crypto.randomUUID(), youtubeId:id, url:`https://www.youtube.com/watch?v=${id}`, title:`YouTube video · ${id}`, quality, source:'youtube', status:'queued', created:Date.now(), bytes:0, position:0};
   await saveVideo(video); $('#video-url').value = ''; filter = 'all'; view = 'library'; await refresh();
-  if (!config.server || !config.key) { toast('Link queued. Connect your server to start preloading.'); openSettings(); }
+  if (!config.server || (!config.key && !config.managed)) { toast('Link queued. Connect your server to start preloading.'); openSettings(); }
   else if (!navigator.onLine) toast('Link queued. Go online to cache the video.');
   else pump();
 }
@@ -253,7 +256,7 @@ async function cardAction(event) {
   if (target.dataset.action === 'retry') {
     if (video.source !== 'youtube') { toast('Import the original file again to finish this video.'); $('#import-file').click(); return; }
     await update(video, {status:'queued', error:null});
-    if (!config.server || !config.key) openSettings(); else if (!navigator.onLine) toast('Go online to resume caching.'); else pump();
+    if (!config.server || (!config.key && !config.managed)) openSettings(); else if (!navigator.onLine) toast('Go online to resume caching.'); else pump();
   }
   if (target.dataset.action === 'remove' && await confirmation('Remove this video?', `“${video.title}” and its cached data will be removed from this device.`)) {
     deleting.add(id);
@@ -263,6 +266,7 @@ async function cardAction(event) {
 }
 
 function openSettings() {
+  if (config.managed) { $('#managed-result').textContent = ''; showDialog('managed-dialog'); return; }
   $('#server-url').value = config.server || (location.hostname.endsWith('.onrender.com') ? location.origin : '');
   $('#server-key').value = config.key || ''; $('#connection-result').textContent = ''; showDialog('settings-dialog');
 }
@@ -310,6 +314,15 @@ function bind() {
   $('#settings-open').onclick = openSettings; $('#connect-banner').onclick = openSettings;
   $('#settings-form').onsubmit = event => { event.preventDefault(); testSettings(true); };
   $('#test-connection').onclick = () => testSettings();
+  $('#managed-check').onclick = async () => {
+    const button = $('#managed-check'), output = $('#managed-result');
+    button.disabled = true; output.textContent = 'Checking your video server…';
+    try {
+      const result = await api('/api/connection');
+      output.textContent = result.ok && result.dependencies_ready ? 'Your video server is online and ready.' : 'The server is online, but its video tools need attention.';
+    } catch (error) { output.textContent = error.message; }
+    finally { button.disabled = false; }
+  };
   $$('[data-close]').forEach(button => button.onclick = () => closeDialog(button.dataset.close));
   $('#help-open').onclick = () => showDialog('help-dialog');
   $('#import-button').onclick = () => $('#import-file').click();
@@ -340,6 +353,17 @@ async function init() {
   for (const video of await allVideos()) if (['preparing','caching'].includes(video.status)) { video.status = 'paused'; video.stage = null; await saveVideo(video); }
   await refresh(); await storageInfo();
   ensureWorker().catch(error => toast(error.message));
+  if (navigator.onLine) {
+    const timeout = new AbortController(), timer = setTimeout(()=>timeout.abort(),6000);
+    try {
+      const response = await fetch('/api/config',{cache:'no-store',signal:timeout.signal});
+      if (response.ok && (await response.json()).managed) {
+        config = {server:location.origin,managed:true};
+        await setSetting('connection',config); await refresh();
+      }
+    } catch { /* Existing device configuration remains usable offline. */ }
+    finally { clearTimeout(timer); }
+  }
   pump();
 }
 init().catch(error => { $('#startup-error').hidden = false; $('#startup-error').textContent = `BUFFER could not open device storage: ${error.message} Try a normal Safari window with website storage enabled.`; });

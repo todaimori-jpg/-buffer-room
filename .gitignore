@@ -6,3 +6,5 @@ __pycache__/
 node_modules/
 artifacts/
 .pytest_cache/
+dist/server/
+dist/.openai/

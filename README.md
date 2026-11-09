@@ -2,13 +2,13 @@
 
 A personal, iPad-friendly offline video room. Add a YouTube link, wait for the complete video to be prepared and cached on your device, then watch in the app without managing video files.
 
-**Deployment status:** the frontend can run as a static PWA. YouTube preparation requires the included Python service to be deployed and connected in Settings. It is not supplied by the static frontend alone. YouTube extraction is unofficial and may fail on some videos or hosting IPs.
+The private BUFFER app uses a small authenticated proxy to connect automatically to its Render video service. The connection key stays in server-side runtime configuration and is never embedded in the browser app. A separately self-hosted static copy can still connect manually through Settings. YouTube extraction is unofficial and may fail on some videos or hosting IPs.
 
 ## Start on iPad
 
 1. Open the published BUFFER address in Safari.
 2. Use **Share → Add to Home Screen**, then open the installed app.
-3. Open Settings and connect the video server using its HTTPS URL and connection key.
+3. The private hosted app connects automatically. For a self-hosted static copy, open Settings and enter your own video server’s HTTPS URL and connection key.
 4. Paste a YouTube video link. Choose **360p** or **720p** (maximum resolution), then **Add to queue**.
 5. Keep BUFFER open while it shows **Preparing on server**, then **Caching on this device**. iPad may suspend background work even with the screen wake lock requested.
 6. Wait for **Ready offline**. Test playback, seeking, and reopening the app in airplane mode before a trip.
@@ -29,6 +29,12 @@ The source includes a Dockerfile, pinned dependencies, Node 24 for yt-dlp’s Ja
 6. In BUFFER Settings, enter the Render service’s HTTPS origin (no path) and that key. Press **Test connection**, then **Save connection**.
 
 `BUFFER_ALLOWED_ORIGINS` already contains this project’s published frontend origin. If you host the frontend elsewhere, update that environment variable with its exact origin and redeploy. Separate several origins with commas. The server also serves the full app at its own root, so a single Render service can host everything. Choose one frontend address before building your offline library.
+
+### Automatic private connection
+
+The Sites deployment uses the self-contained ES module under `worker/index.js`, built from `worker/router.js` and the static assets by `scripts/build.sh`. Configure **BUFFER_BACKEND_URL** and secret **BUFFER_BACKEND_KEY** in the Site’s runtime settings, then deploy. `/api/config` returns only a managed-connection flag; video API calls are forwarded to the fixed backend with the server-side key. Browser cookies, ChatGPT identity headers, and Sites service-access credentials are never forwarded to Render. The Site’s owner-only access policy protects the proxy. Preserve that private audience.
+
+The static `dist/` app and Python service work independently of this Worker; Docker continues to serve the static app directly. Do not put runtime keys in `render.yaml`, Worker source, browser storage for managed mode, or client bundles.
 
 For a custom Docker deployment, set `BUFFER_API_KEY` and, for a separate frontend, `BUFFER_ALLOWED_ORIGINS`. Expose port 8000 or set `PORT`.
 

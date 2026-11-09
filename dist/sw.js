@@ -1,6 +1,6 @@
 import {getVideo, getChunk, CHUNK_SIZE} from './db.js';
 import {parseRange} from './media.js';
-const CACHE = 'buffer-shell-v1.0.2';
+const CACHE = 'buffer-shell-v1.1.0';
 const SHELL = ['/', '/index.html', '/styles.css', '/app.js', '/db.js', '/media.js', '/icon.svg', '/icon-192.png', '/icon-512.png', '/manifest.webmanifest'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL)).then(() => self.skipWaiting()));
