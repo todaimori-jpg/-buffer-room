@@ -1,9 +1,18 @@
 import {getVideo, getChunk, CHUNK_SIZE} from './db.js';
 import {parseRange} from './media.js';
-const CACHE = 'buffer-shell-v1.1.0';
-const SHELL = ['/', '/index.html', '/styles.css', '/app.js', '/db.js', '/media.js', '/icon.svg', '/icon-192.png', '/icon-512.png', '/manifest.webmanifest'];
+const CACHE = 'buffer-shell-v1.2.0';
+const SHELL = ['/', '/index.html', '/styles.css', '/app-v1.2.0.js', '/icon.svg', '/icon-192.png', '/icon-512.png', '/manifest.webmanifest'];
 self.addEventListener('install', event => {
-  event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL)).then(() => self.skipWaiting()));
+  event.waitUntil((async()=>{
+    const cache=await caches.open(CACHE);
+    for(const path of SHELL){
+      const response=await fetch(new Request(path,{cache:'reload',credentials:'same-origin'}));
+      if(!response.ok || response.redirected)throw new Error('The offline app could not cache '+path);
+      if(path.endsWith('.js') && !/javascript|ecmascript/i.test(response.headers.get('Content-Type')||''))throw new Error('The offline script was replaced by a sign-in or error page.');
+      await cache.put(path,response);
+    }
+    await self.skipWaiting();
+  })());
 });
 self.addEventListener('activate', event => {
   event.waitUntil(Promise.all([

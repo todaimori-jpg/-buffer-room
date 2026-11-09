@@ -46,7 +46,7 @@ export default {
     const asset = ASSETS[path];
     if (!asset) return new Response('Not found',{status:404});
     const headers = {'Content-Type':asset.type,'X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','Cache-Control':'no-cache'};
-    if (path === '/sw.js') headers['Service-Worker-Allowed'] = '/';
+    if (path === '/sw.js' || /^\/offline-v[\d.]+\.js$/.test(path)) headers['Service-Worker-Allowed'] = '/';
     const body = request.method === 'HEAD' ? null : Uint8Array.from(atob(asset.data),c=>c.charCodeAt(0));
     return new Response(body,{headers});
   }

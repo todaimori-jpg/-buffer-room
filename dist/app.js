@@ -71,10 +71,10 @@ async function ensureWorker() {
   // A working installed controller must not depend on re-fetching its script.
   // Re-registering first can fail offline even though every video byte is local.
   if (navigator.serviceWorker.controller) {
-    if (navigator.onLine) navigator.serviceWorker.getRegistration().then(registration => registration?.update()).catch(()=>{});
+    if (navigator.onLine) navigator.serviceWorker.register('/offline-v1.2.0.js',{scope:'/',updateViaCache:'none'}).catch(()=>{});
     return;
   }
-  await navigator.serviceWorker.register('/sw.js', {type: 'module'});
+  await navigator.serviceWorker.register('/offline-v1.2.0.js', {scope:'/',updateViaCache:'none'});
   await Promise.race([navigator.serviceWorker.ready, new Promise((_, reject) => setTimeout(() => reject(new Error('The offline player could not start. Reload while online and try again.')), 20000))]);
   if (!navigator.serviceWorker.controller) await Promise.race([
     new Promise(resolve => navigator.serviceWorker.addEventListener('controllerchange', resolve, {once:true})),
@@ -89,7 +89,7 @@ async function api(path, {method='GET', body, signal, timeout=90000, raw=false, 
   if (signal?.aborted) abort(); else signal?.addEventListener('abort', abort, {once:true});
   const timer = setTimeout(() => controller.abort(new Error('The server took too long to respond. Try again; it may be waking up.')), timeout);
   try {
-    const response = await fetch(settings.server + path, {method, body: body === undefined ? undefined : JSON.stringify(body), headers:{...headers,...(body === undefined ? {} : {'Content-Type':'application/json'}),...(settings.key ? {'Authorization':`Bearer ${settings.key}`} : {})}, signal:controller.signal, credentials:'omit', redirect:'error', cache:'no-store'});
+    const response = await fetch(settings.server + path, {method, body: body === undefined ? undefined : JSON.stringify(body), headers:{...headers,...(body === undefined ? {} : {'Content-Type':'application/json'}),...(settings.key ? {'Authorization':`Bearer ${settings.key}`} : {})}, signal:controller.signal, credentials:settings.managed ? 'same-origin' : 'omit', redirect:'error', cache:'no-store'});
     if (!response.ok) {
       const detail = await response.json().catch(() => ({}));
       throw new Error(detail.detail || detail.error || (response.status === 401 ? 'Connection key rejected. Check your server key in Settings.' : `Server returned ${response.status}.`));

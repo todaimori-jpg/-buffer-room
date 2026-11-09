@@ -8,6 +8,8 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY server ./server
 COPY dist ./dist
+COPY scripts/build-client.mjs ./scripts/build-client.mjs
+RUN node scripts/build-client.mjs
 RUN useradd --create-home buffer && mkdir -p /app/.buffer-data && chown -R buffer:buffer /app
 USER buffer
 EXPOSE 8000

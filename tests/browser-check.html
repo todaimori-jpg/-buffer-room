@@ -6,7 +6,7 @@ document.querySelector('#run').onclick=async()=>{
  const log=s=>output.textContent+=s+'\n';
  const assert=(condition,label)=>{if(!condition)throw new Error(label);log('PASS · '+label)};
  try{
-  await navigator.serviceWorker.register('/sw.js',{type:'module'}); await navigator.serviceWorker.ready;
+  await navigator.serviceWorker.register('/offline-v1.2.0.js',{scope:'/',updateViaCache:'none'}); await navigator.serviceWorker.ready;
   if(!navigator.serviceWorker.controller)throw new Error('Reload this check page once to activate its worker.');
   const size=CHUNK_SIZE*2+37;
   const source=new Uint8Array(size);for(let i=0;i<size;i++)source[i]=(i*31+7)%251;
