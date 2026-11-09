@@ -1,0 +1,33 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>BUFFER offline storage checks</title><style>body{font:16px system-ui;padding:40px;background:#f5f5ef;color:#1b201c}button{font:inherit;padding:14px 20px}pre{white-space:pre-wrap;line-height:1.8}</style><h1>Offline storage integration checks</h1><p>Creates and removes its own synthetic test video. Existing library items are untouched.</p><button id="run">Run storage checks</button><pre id="results" role="status">Ready to test.</pre><script type="module">
+import {CHUNK_SIZE,putChunk,saveVideo,inspectVideo,removeVideo} from '/db.js';
+const output=document.querySelector('#results');
+document.querySelector('#run').onclick=async()=>{
+ const id='qa-'+crypto.randomUUID(); output.textContent='Running…\n';
+ const log=s=>output.textContent+=s+'\n';
+ const assert=(condition,label)=>{if(!condition)throw new Error(label);log('PASS · '+label)};
+ try{
+  await navigator.serviceWorker.register('/sw.js',{type:'module'}); await navigator.serviceWorker.ready;
+  if(!navigator.serviceWorker.controller)throw new Error('Reload this check page once to activate its worker.');
+  const size=CHUNK_SIZE*2+37;
+  const source=new Uint8Array(size);for(let i=0;i<size;i++)source[i]=(i*31+7)%251;
+  const video={id,title:'Synthetic QA bytes',status:'caching',size,mime:'video/mp4',created:0};await saveVideo(video);
+  await putChunk(id,0,source.slice(0,CHUNK_SIZE).buffer);
+  assert(!(await inspectVideo(video)).complete,'A partial transfer is not complete');
+  await putChunk(id,1,source.slice(CHUNK_SIZE,2*CHUNK_SIZE).buffer);
+  await putChunk(id,2,source.slice(2*CHUNK_SIZE).buffer);
+  assert((await inspectVideo(video)).complete,'All chunks are verified before ready');
+  let response=await fetch('/offline-media/'+id);assert(response.status===404,'Unmarked cache is not playable');
+  video.status='ready';await saveVideo(video);
+  response=await fetch('/offline-media/'+id);let bytes=new Uint8Array(await response.arrayBuffer());
+  assert(response.status===200 && bytes.length===size && bytes.every((b,i)=>b===source[i]),'Full response matches original bytes across three chunks');
+  for(const [start,end] of [[0,1],[CHUNK_SIZE-3,CHUNK_SIZE+7],[size-11,size-1]]){
+   response=await fetch('/offline-media/'+id,{headers:{Range:`bytes=${start}-${end}`}});bytes=new Uint8Array(await response.arrayBuffer());
+   assert(response.status===206 && bytes.every((b,i)=>b===source[start+i]) && bytes.length===end-start+1,'Exact seek range '+start+'–'+end);
+  }
+  response=await fetch('/offline-media/'+id,{headers:{Range:'bytes=-9'}});bytes=new Uint8Array(await response.arrayBuffer());assert(bytes.length===9 && bytes.every((b,i)=>b===source[size-9+i]),'Suffix range works');
+  response=await fetch('/offline-media/'+id,{method:'HEAD',headers:{Range:'bytes=0-1'}});assert(response.status===206 && response.headers.get('Content-Length')==='2' && (await response.arrayBuffer()).byteLength===0,'Safari HEAD probe works');
+  response=await fetch('/offline-media/'+id,{headers:{Range:`bytes=${size}-`}});assert(response.status===416,'Invalid range is rejected');
+  log('\nALL 10 STORAGE CHECKS PASSED');
+ }catch(error){log('FAIL · '+error.message)}finally{await removeVideo(id)}
+};
+</script></html>

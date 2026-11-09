@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: buffer-video-room
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    envVars:
+      - key: BUFFER_API_KEY
+        generateValue: true
+      - key: BUFFER_ALLOWED_ORIGINS
+        value: https://buffer-room-kris.orwellianinstitute.chatgpt.site
+      - key: BUFFER_MAX_VIDEO_MB
+        value: "2048"
+      - key: BUFFER_MAX_SERVER_MB
+        value: "6144"
+      - key: BUFFER_SERVER_CACHE_HOURS
+        value: "24"

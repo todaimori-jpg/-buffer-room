@@ -1,0 +1,11 @@
+.git
+.openai
+.env
+.venv
+.buffer-data
+__pycache__
+tests
+node_modules
+artifacts
+*.zip
+*.tar.gz
