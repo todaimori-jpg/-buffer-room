@@ -4,6 +4,8 @@ A personal, iPad-friendly offline video room. Add a YouTube link, wait for the c
 
 The private BUFFER app uses a small authenticated proxy to connect automatically to its Render video service. The connection key stays in server-side runtime configuration and is never embedded in the browser app. A separately self-hosted static copy can still connect manually through Settings. YouTube extraction is unofficial and may fail on some videos or hosting IPs.
 
+**Current live status:** The private app and Render server are deployed and connected. YouTube rejected the live test with “Sign in to confirm you’re not a bot,” so YouTube-to-offline preloading is currently blocked on this Render backend. Offline caching and playback of imported videos and the built-in test clip have been verified.
+
 ## Start on iPad
 
 1. Open the published BUFFER address in Safari.
@@ -85,7 +87,7 @@ For manual browser integration tests, temporarily serve `tests/browser-check.htm
 
 The original sample clip played from device storage in a Chromium browser, including after stopping the app server and reloading the page. Ten browser storage/range checks, two JavaScript test groups, and eight server tests passed. Server checks cover authentication, URL validation, deduplication, range bytes, expiration, actual MP4 preparation, and invalid-media rejection. Responsive layouts were inspected at iPad and phone widths. Safari/iPad hardware has not been tested.
 
-A live YouTube test retrieved metadata but the media response was an HTML “Site Unavailable” page. End-to-end YouTube preloading is therefore **unverified** in this environment and must be checked on the deployed server. Do not treat the sample-clip test as proof of YouTube extraction.
+The deployed private proxy passed its connection check and accepted a YouTube preparation job. The job then failed with YouTube’s bot-verification/sign-in message. YouTube preloading remains blocked on the current Render backend.
 
 ## References
 
