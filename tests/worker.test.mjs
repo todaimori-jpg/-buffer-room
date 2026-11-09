@@ -31,6 +31,7 @@ test('proxy injects server auth, strips visitor credentials, and preserves range
     assert.equal(call.options.headers.get('OAI-Sites-Authorization'),null);
     assert.equal(call.options.headers.get('oai-authenticated-user-email'),null);
     assert.equal(call.options.headers.get('Range'),'bytes=0-1');
+    assert.equal(call.options.redirect,'manual');
     assert.equal(response.status,206);
     assert.equal(response.headers.get('Content-Range'),'bytes 0-1/100');
     assert.deepEqual([...new Uint8Array(await response.arrayBuffer())],[11,22]);

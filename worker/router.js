@@ -29,13 +29,17 @@ export default {
       headers.set('Authorization',`Bearer ${env.BUFFER_BACKEND_KEY}`);
       // Never forward browser cookies, ChatGPT identity, or service-access tokens.
       try {
-        const response = await fetch(backend.toString(), {method:request.method, headers, body:['GET','HEAD'].includes(request.method) ? undefined : request.body, redirect:'error'});
+        const response = await fetch(backend.toString(), {method:request.method, headers, body:['GET','HEAD'].includes(request.method) ? undefined : request.body, redirect:'manual'});
+        if (response.status >= 300 && response.status < 400) return json({detail:'The video server returned an unexpected redirect.'},502);
         const safeHeaders = new Headers();
         for (const name of ['Content-Type','Content-Length','Content-Range','Accept-Ranges']) if (response.headers.has(name)) safeHeaders.set(name,response.headers.get(name));
         safeHeaders.set('Cache-Control','no-store');
         safeHeaders.set('X-Content-Type-Options','nosniff');
         return new Response(response.body,{status:response.status,headers:safeHeaders});
-      } catch { return json({detail:'The video server could not be reached. It may be waking up; retry in a moment.'},502); }
+      } catch (error) {
+        console.error('BUFFER proxy failed:',error.name,error.message);
+        return json({detail:'The video server could not be reached. It may be waking up; retry in a moment.'},502);
+      }
     }
     if (!['GET','HEAD'].includes(request.method)) return new Response('Method not allowed',{status:405});
     const path = url.pathname === '/' ? '/index.html' : url.pathname;
